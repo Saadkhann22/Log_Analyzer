@@ -23,6 +23,17 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
+      - name: Wait for database to be healthy
+        run: sleep 10
+
+      - name: Set up database schema
+        run: |
+          docker compose exec -T db psql -U postgres -d log_analyzer -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          docker compose exec -T app python <your_table_setup_script>.py
+
+      - name: Seed data
+        run: docker compose exec -T app python db_seed.py
+
       - name: Run tests
         run: docker compose exec -T app python test_all.py
 
