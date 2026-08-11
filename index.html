@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log Analyzer</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #181b24; --panel2: #1f232f; --border: #2a2f3d;
+    --text: #e6e8ee; --muted: #9aa3b2; --accent: #6ea8fe; --accent2: #3d6fd8;
+    --crit: #ff5c6c; --err: #ff8f5c; --warn: #ffd25c; --info: #6ee7a8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header .status { font-size: 13px; color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555; margin-right: 6px; }
+  .dot.ok { background: var(--info); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 18px; }
+  h2 { font-size: 15px; margin: 0 0 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  input, button { font: inherit; }
+  input {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 12px; border-radius: 8px; outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  button {
+    background: var(--accent2); color: #fff; border: none; padding: 9px 16px;
+    border-radius: 8px; cursor: pointer; transition: .15s;
+  }
+  button:hover { background: var(--accent); }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  button.ghost:hover { border-color: var(--accent); color: var(--text); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  tr:hover td { background: var(--panel2); }
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+  .lvl-CRITICAL { background: rgba(255,92,108,.15); color: var(--crit); }
+  .lvl-ERROR { background: rgba(255,143,92,.15); color: var(--err); }
+  .lvl-WARNING { background: rgba(255,210,92,.15); color: var(--warn); }
+  .lvl-INFO { background: rgba(110,231,168,.15); color: var(--info); }
+  .msg { max-width: 460px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .hidden { display: none; }
+  .result-panel { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-top: 12px; }
+  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 14px; font-size: 14px; }
+  .kv .k { color: var(--muted); }
+  .sim-item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .sim-item:last-child { border: none; }
+  .bar { height: 6px; border-radius: 4px; background: var(--accent2); }
+  .err-text { color: var(--crit); font-size: 13px; }
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: s .7s linear infinite; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .actions button { padding: 5px 11px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔍 Log Analyzer</h1>
+  <div class="status"><span id="dot" class="dot"></span><span id="statusText">checking…</span></div>
+</header>
+
+<div class="wrap">
+
+  <!-- LOGIN -->
+  <div class="card" id="loginCard">
+    <h2>Login</h2>
+    <div class="row">
+      <input id="username" placeholder="username" value="admin">
+      <input id="password" type="password" placeholder="password" value="password123">
+      <button id="loginBtn" onclick="login()">Sign in</button>
+      <span id="loginErr" class="err-text"></span>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content: space-between;">
+        <h2 style="margin:0;">Logs</h2>
+        <div class="row">
+          <button class="ghost" onclick="loadLogs()">↻ Refresh</button>
+          <button class="ghost" onclick="logout()">Logout</button>
+        </div>
+      </div>
+      <table id="logsTable">
+        <thead>
+          <tr><th>ID</th><th>Level</th><th>Message</th><th>User</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="logsBody"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- CLASSIFY PANEL -->
+    <div class="card hidden" id="classifyCard">
+      <h2>🤖 AI Classification — Log #<span id="clfId"></span></h2>
+      <div id="clfBody"></div>
+    </div>
+
+    <!-- SIMILAR PANEL -->
+    <div class="card hidden" id="similarCard">
+      <h2>🧲 Similar Logs to #<span id="simId"></span></h2>
+      <div id="simBody"></div>
+    </div>
+
+    <!-- ANALYZE PANEL (LangGraph agent: classify → similar → human approval → report) -->
+    <div class="card hidden" id="analyzeCard">
+      <h2>🧠 Agent Analysis — Log #<span id="anaId"></span></h2>
+      <div id="anaBody"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = "";  // same origin
+let token = localStorage.getItem("token") || null;
+
+function authHeaders() { return { "Authorization": "Bearer " + token }; }
+
+async function checkHealth() {
+  try {
+    const r = await fetch(API + "/health");
+    const d = await r.json();
+    document.getElementById("dot").classList.add("ok");
+    document.getElementById("statusText").textContent = d.status + " · " + d.model.replace("models/", "");
+  } catch (e) {
+    document.getElementById("statusText").textContent = "API offline";
+  }
+}
+
+async function login() {
+  const btn = document.getElementById("loginBtn");
+  const err = document.getElementById("loginErr");
+  err.textContent = "";
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const r = await fetch(API + "/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: document.getElementById("username").value,
+        password: document.getElementById("password").value,
+      }),
+    });
+    if (!r.ok) throw new Error("Invalid credentials");
+    const d = await r.json();
+    token = d.access_token;
+    localStorage.setItem("token", token);
+    showDashboard();
+  } catch (e) {
+    err.textContent = e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
+}
+
+function logout() {
+  token = null; localStorage.removeItem("token");
+  document.getElementById("dashboard").classList.add("hidden");
+  document.getElementById("loginCard").classList.remove("hidden");
+}
+
+function showDashboard() {
+  document.getElementById("loginCard").classList.add("hidden");
+  document.getElementById("dashboard").classList.remove("hidden");
+  loadLogs();
+}
+
+function levelBadge(lvl) {
+  return `<span class="badge lvl-${lvl}">${lvl}</span>`;
+}
+
+async function loadLogs() {
+  const body = document.getElementById("logsBody");
+  body.innerHTML = '<tr><td colspan="5" class="muted">Loading…</td></tr>';
+  try {
+    const r = await fetch(API + "/logs", { headers: authHeaders() });
+    if (r.status === 401) return logout();
+    const logs = await r.json();
+    if (!logs.length) { body.innerHTML = '<tr><td colspan="5" class="muted">No logs.</td></tr>'; return; }
+    body.innerHTML = logs.map(l => `
+      <tr>
+        <td>${l.id}</td>
+        <td>${levelBadge(l.level)}</td>
+        <td class="msg">${escapeHtml(l.message)}</td>
+        <td class="muted">${l.user || "—"}</td>
+        <td class="actions row">
+          <button onclick="classify(${l.id})">Classify</button>
+          <button class="ghost" onclick="similar(${l.id})">Similar</button>
+          <button class="ghost" onclick="analyze(${l.id})">🧠 Analyze</button>
+        </td>
+      </tr>`).join("");
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="5" class="err-text">${e.message}</td></tr>`;
+  }
+}
+
+async function classify(id) {
+  const card = document.getElementById("classifyCard");
+  const bodyEl = document.getElementById("clfBody");
+  document.getElementById("clfId").textContent = id;
+  card.classList.remove("hidden");
+  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Asking Gemini…</span>';
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  try {
+    const r = await fetch(API + `/logs/${id}/classify`, { method: "POST", headers: authHeaders() });
+    if (r.status === 401) return logout();
+    const d = await r.json();
+    bodyEl.innerHTML = `<div class="result-panel"><div class="kv">
+      <div class="k">Severity</div><div>${levelBadge((d.severity||"").toUpperCase())}</div>
+      <div class="k">Category</div><div>${escapeHtml(d.category||"—")}</div>
+      <div class="k">Likely cause</div><div>${escapeHtml(d.likely_cause||"—")}</div>
+      <div class="k">Suggested action</div><div>${escapeHtml(d.suggested_action||"—")}</div>
+    </div></div>`;
+  } catch (e) {
+    bodyEl.innerHTML = `<span class="err-text">${e.message}</span>`;
+  }
+}
+
+async function similar(id) {
+  const card = document.getElementById("similarCard");
+  const bodyEl = document.getElementById("simBody");
+  document.getElementById("simId").textContent = id;
+  card.classList.remove("hidden");
+  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Searching embeddings…</span>';
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  try {
+    const r = await fetch(API + `/logs/${id}/similar?limit=5`, { headers: authHeaders() });
+    if (r.status === 401) return logout();
+    const d = await r.json();
+    if (!d.count) { bodyEl.innerHTML = '<span class="muted">No similar logs (embedding missing).</span>'; return; }
+    bodyEl.innerHTML = '<div class="result-panel">' + d.similar_logs.map(s => {
+      const pct = Math.round(s.similarity * 100);
+      return `<div class="sim-item">
+        <div>${levelBadge(s.level)} <span style="margin-left:6px;">${escapeHtml(s.message)}</span>
+          <div class="muted">#${s.id} · ${s.user_name || "—"}</div></div>
+        <div style="text-align:right; min-width:120px;">
+          <div>${pct}%</div>
+          <div class="bar" style="width:${pct}%; margin-left:auto;"></div>
+        </div>
+      </div>`;
+    }).join("") + "</div>";
+  } catch (e) {
+    bodyEl.innerHTML = `<span class="err-text">${e.message}</span>`;
+  }
+}
+
+// ============================================
+// LANGGRAPH AGENT PIPELINE
+// ============================================
+// The graph pauses server-side at interrupt(), but to the browser it's
+// just two plain requests:
+//   1. POST /logs/{id}/analyze          → returns "awaiting_approval" + thread_id
+//   2. POST /analysis/{thread_id}/approve → resumes the graph, returns the report
+// The thread_id is the claim ticket for the frozen run in checkpoints.db.
+
+// State 1: kick off the graph, run until the interrupt.
+async function analyze(id) {
+  const card = document.getElementById("analyzeCard");
+  const bodyEl = document.getElementById("anaBody");
+  document.getElementById("anaId").textContent = id;
+  card.classList.remove("hidden");
+  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Running agent graph: fetch → classify → similar…</span>';
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  try {
+    const r = await fetch(API + `/logs/${id}/analyze`, { method: "POST", headers: authHeaders() });
+    if (r.status === 401) return logout();
+    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || "Analysis failed"); }
+    const d = await r.json();
+    if (d.status === "awaiting_approval") renderApproval(d);
+    else renderReport(d.report, null);  // graph finished without pausing
+  } catch (e) {
+    bodyEl.innerHTML = `<span class="err-text">${e.message}</span>`;
+  }
+}
+
+// State 2: the graph is paused — show the human what they're approving.
+function renderApproval(d) {
+  const bodyEl = document.getElementById("anaBody");
+  const c = d.classification || {};
+  const sims = d.similar_logs || [];
+  bodyEl.innerHTML = `
+    <div class="result-panel">
+      <div class="kv">
+        <div class="k">Log</div><div>${escapeHtml(d.log.message)}</div>
+        <div class="k">Severity</div><div>${levelBadge((c.severity || "").toUpperCase())}</div>
+        <div class="k">Category</div><div>${escapeHtml(c.category || "—")}</div>
+        <div class="k">Likely cause</div><div>${escapeHtml(c.likely_cause || "—")}</div>
+        <div class="k">Attempts</div><div>${d.prompt && d.prompt.attempts || "—"}</div>
+        <div class="k">Similar logs</div><div>${sims.length} found</div>
+      </div>
+    </div>
+    <div class="result-panel">
+      <div style="margin-bottom:10px;">⏸ ${escapeHtml((d.prompt && d.prompt.question) || "Generate an incident report?")}
+        <span class="muted">(graph is paused server-side, waiting for you)</span></div>
+      <div class="row">
+        <button onclick="sendDecision('${d.thread_id}', true)">✅ Approve</button>
+        <button class="ghost" onclick="sendDecision('${d.thread_id}', false)">✖ Reject</button>
+      </div>
+    </div>`;
+}
+
+// State 3: hand the decision back — Command(resume=…) on the server side.
+async function sendDecision(threadId, approved) {
+  const bodyEl = document.getElementById("anaBody");
+  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Resuming graph with your decision…</span>';
+  try {
+    const r = await fetch(API + `/analysis/${threadId}/approve`, {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ approved }),
+    });
+    if (r.status === 401) return logout();
+    if (!r.ok) { bodyEl.innerHTML = '<span class="err-text">No paused analysis found for that thread.</span>'; return; }
+    const d = await r.json();
+    renderReport(d.report, d.approved);
+  } catch (e) {
+    bodyEl.innerHTML = `<span class="err-text">${e.message}</span>`;
+  }
+}
+
+// Terminal state: show the report (or the rejection note).
+function renderReport(report, approved) {
+  const bodyEl = document.getElementById("anaBody");
+  const label = approved === false ? "🚫 Rejected — no report generated" : "📄 Incident Report";
+  bodyEl.innerHTML = `<div class="result-panel">
+    <div class="muted" style="margin-bottom:8px;">${label}</div>
+    <div style="white-space:pre-wrap;">${escapeHtml(report)}</div>
+  </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+// init
+checkHealth();
+if (token) showDashboard();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+psycopg2-binary
+python-dotenv
+PyJWT
+google-genai
+langgraph
+langgraph-checkpoint-sqlite
