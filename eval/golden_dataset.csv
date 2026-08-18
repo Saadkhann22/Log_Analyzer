@@ -1,0 +1,61 @@
+id,level,,,,message,message,message,message,message,message,message,,,Severity,,Category
+1,ERROR,,,,Database connection timeout after 30 seconds,,,,,,,,,info,,database
+2,WARNING,,,,Slow query detected: SELECT * FROM orders WHERE status='pending' (took 12.5s),,,,,,,,,info,,database
+3,CRITICAL,,,,PostgreSQL replication lag exceeded 5 minutes on slave replica,,,,,,,,,info,,database
+4,WARNING,,,,"Connection pool exhausted after 100 active connections, queuing requests",,,,,,,,,info,,database
+5,ERROR,,,,"MongoDB WriteConcern timeout: {w: 'majority', wtimeout: 5000} failed after 8s",,,,,,,,,error,,database
+6,WARNING,,,,Redis memory usage at 75% of maxmemory - eviction policy active,,,,,,,,,warning,,database
+7,CRITICAL,,,,Corrupt index detected on table 'transactions' - manual repair required,,,,,,,,,warning,,database
+8,INFO,,,,Database migration v2.3.1 applied successfully to 14 shards,,,,,,,,,info,,database
+9,ERROR,,,,Elasticsearch cluster status: YELLOW - 2 unassigned shards,,,,,,,,,info,,database
+10,WARNING,,,,Cassandra tombstone ratio exceeded 0.2 on table 'user_sessions',,,,,,,,,info,,database
+11,WARNING,,,,API rate limit exceeded for IP 192.168.1.100,,,,,,,,,warning,,network
+12,ERROR,,,,SSL certificate expired for api.example.com,,,,,,,,,warning,,network
+13,ERROR,,,,Synapse federation error: Failed to send event to matrix.org: Connection timeout,,,,,,,,,error,,federdation
+14,CRITICAL,,,,BGP neighbor 10.0.1.254 flapping - route instability detected,,,,,,,,,warning,,network
+15,WARNING,,,,TCP SYN flood detected from 203.0.113.45 - rate limiting engaged,,,,,,,,,warning,,network
+16,ERROR,,,,DNS resolution failed for internal-service.prod.local after 3 retries,,,,,,,,,error,,network
+17,INFO,,,,"Load balancer health check: instance i-abc123 marked unhealthy, draining connections",,,,,,,,,warning,,deployment
+18,ERROR,,,,Docker container postgres_1: Connection refused - health check failed,,,,,,,,,error,,deployment
+19,WARNING,,,,Kubernetes pod pending for 15 minutes: insufficient CPU on nodes,,,,,,,,,error,,deployment
+20,ERROR,,,,Helm deployment failed: upgrade 'api-gateway' failed: conflict in CRD version,,,,,,,,,error,,deployment
+21,CRITICAL,,,,Node.js OOM killer terminated process in container - memory limit 2GB exceeded,,,,,,,,,critical,,deployment
+22,INFO,,,,Canary deployment for v3.2.0: 10% traffic routed successfully,,,,,,,,,info,,deployment
+23,WARNING,,,,Image pull backoff for registry/myapp:latest - authentication failed,,,,,,,,,critical,,auth
+24,CRITICAL,,,,Authentication service unreachable - users cannot log in,,,,,,,,,error,,auth
+25,CRITICAL,,,,MAS authentication failure: OIDC token validation failed for user@example.com,,,,,,,,,error,,auth
+26,WARNING,,,,Failed login attempts exceeded threshold: 47 attempts in 5 minutes for user 'admin',,,,,,,,,error,,auth
+27,ERROR,,,,JWT signature validation failed - possible key rotation mismatch,,,,,,,,,error,,auth
+28,WARNING,,,,SAML assertion expired for user 'jdoe' - session will be re-authenticated,,,,,,,,,info,,auth
+29,ERROR,,,,LDAP bind failed: invalid credentials or user not found in Active Directory,,,,,,,,,error,,auth
+30,INFO,,,,MFA code verified successfully for user 'alice_smith',,,,,,,,,info,,auth
+31,ERROR,,,,Failed to process payment for order #ORD-7890: Insufficient funds,,,,,,,,,critical,,auth
+32,WARNING,,,,Fraud detection alert: Order #ORD-8912 from high-risk region with unusual purchase pattern,,,,,,,,,warning,,auth
+33,ERROR,,,,Inventory reservation failed for SKU XYS-100: quantity 500 exceeds available stock (342),,,,,,,,,error,,auth
+34,INFO,,,,"Subscription renewal processed for 1,247 customers - total revenue $124,700",,,,,,,,,info,,auth
+35,CRITICAL,,,,Disk space at 95% on /dev/sda1 - immediate action required,,,,,,,,,critical,,unknown
+36,WARNING,,,,High memory usage detected: 4.2GB / 5.0GB (84%),,,,,,,,,warning,,unknown
+37,ERROR,,,,File not found: /data/imports/customer_import_2026-07-01.csv,,,,,,,,,error,,unknown
+38,CRITICAL,,,,Kernel panic detected on node compute-02 - automatic reboot initiated,,,,,,,,,error,,federdation
+39,WARNING,,,,CPU thermal throttling active on socket 0 - temperature at 85°C,,,,,,,,,info,,federdation
+40,ERROR,,,,Systemd unit 'prometheus.service' failed: exit code 1,,,,,,,,,error,,federdation
+41,ERROR,,,,Unable to send email notification: SMTP server refused connection,,,,,,,,,error,,federdation
+42,WARNING,,,,SMS delivery failed for 15 messages - carrier gateway unreachable,,,,,,,,,error,,federdation
+43,ERROR,,,,Webhook delivery failed: endpoint https://webhook.partner.com returned 500,,,,,,,,,error,,federdation
+44,WARNING,,,,Flux delta exceeded acceptable threshold (0.47 vs expected 0.12) on reactor coil #R-102,,,,,,,,,warning,,unknown
+45,ERROR,,,,Tesseract OCR failed to extract text from document: invalid language model for 'xh',,,,,,,,,error,,unknown
+46,WARNING,,,,Quantum state decoherence detected in qubit array - attempting error correction,,,,,,,,,warning,,unknown
+47,ERROR,,,,Astronomical alignment verification failed: ephemeris data out of sync by 14ms,,,,,,,,,warning,,unknown
+48,WARNING,,,,Biometric sensor drift: fingerprint reader variance ±0.23 beyond calibration limits,,,,,,,,,warning,,unknown
+49,ERROR,,,,Neural network inference diverged on batch #847 - output probabilities sum to 1.47,,,,,,,,,info,,unknown
+50,WARNING,,,,Haptic feedback controller overshot torque target by 340% on joint J4,,,,,,,,,info,,unknown
+51,WARNING,,,,API response time degraded from 200ms to 4.5s during peak traffic,,,ambiguous: network/db/deployment,,,,,,info,,network
+52,ERROR,,,,"Message queue backlog: 28,000 messages waiting (threshold: 10,000)",,,ambiguous: infra/network/app,,,,,,info,,federdation
+53,CRITICAL,,,,"Message queue backlog: 28,000 messages waiting (threshold: 10,000)",,,ambiguous: which service actually failed,,,,,,,,
+54,WARNING,,,,"Message queue backlog: 28,000 messages waiting (threshold: 10,000)",,,ambiguous: business metric vs bug,,,,,,,,
+55,ERROR,,,,"Message queue backlog: 28,000 messages waiting (threshold: 10,000)",,,ambiguous: logic vs data corruption,,,,,,,,
+56,WARNING,,,,"Message queue backlog: 28,000 messages waiting (threshold: 10,000)",,,ambiguous: security vs routine,,,,,,,,
+57,INFO,,,,"Message queue backlog: 28,000 messages waiting (threshold: 10,000)",,,expect: unknown,,,,,,,,
+58,WARNING,,,,"Message queue backlog: 28,000 messages waiting (threshold: 10,000)",,,expect: unknown,,,,,,,,
+59,ERROR,,,,"Message queue backlog: 28,000 messages waiting (threshold: 10,000)",,,expect: unknown,,,,,,,,
+60,WARNING,,,,"Message queue backlog: 28,000 messages waiting (threshold: 10,000)",,,expect: unknown,,,,,,,,
