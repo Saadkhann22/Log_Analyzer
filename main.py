@@ -256,7 +256,8 @@ async def llm_calls(limit: int = 100, username: str = Depends(verify_token)):
 @app.get("/health")
 async def health():
     return {"status": "healthy", "model": CLASSIFICATION_MODEL,
-            "langfuse": os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")}
+            "langfuse": os.getenv("LANGFUSE_BASE_URL",
+                                  os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com"))}
 
 @app.get("/")
 async def index():
