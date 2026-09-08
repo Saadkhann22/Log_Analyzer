@@ -11,6 +11,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       CHECKPOINT_DB: /data/checkpoints.db
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL}
     volumes:
       - checkpoints:/data
     depends_on:

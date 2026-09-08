@@ -3,121 +3,344 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Log Analyzer</title>
+<title>LOGSENTINEL // Log Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f1117; --panel: #181b24; --panel2: #1f232f; --border: #2a2f3d;
-    --text: #e6e8ee; --muted: #9aa3b2; --accent: #6ea8fe; --accent2: #3d6fd8;
-    --crit: #ff5c6c; --err: #ff8f5c; --warn: #ffd25c; --info: #6ee7a8;
+    --bg: #04060c;
+    --panel: rgba(10, 16, 28, .72);
+    --panel2: rgba(17, 25, 42, .85);
+    --inset: rgba(4, 8, 16, .85);
+    --border: rgba(96, 180, 255, .14);
+    --border-hot: rgba(56, 225, 255, .45);
+    --text: #dbe6f5;
+    --muted: #7d8ba1;
+    --cyan: #38e1ff;
+    --violet: #8b7bff;
+    --magenta: #ff5ce1;
+    --crit: #ff4d6a; --err: #fb8b24; --warn: #ffe08a; --info: #3ddc97;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    --display: "Orbitron", "Space Grotesk", sans-serif;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
-    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-    background: var(--bg); color: var(--text); line-height: 1.5;
+    margin: 0; color: var(--text); line-height: 1.55;
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
   }
+  /* layered fixed backdrop: glows + grid */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1;
+    background:
+      radial-gradient(900px 500px at 12% -8%, rgba(56, 225, 255, .10), transparent 60%),
+      radial-gradient(900px 600px at 95% 105%, rgba(139, 123, 255, .12), transparent 60%),
+      radial-gradient(600px 400px at 70% 20%, rgba(255, 92, 225, .05), transparent 60%),
+      linear-gradient(rgba(96,180,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(96,180,255,.035) 1px, transparent 1px);
+    background-size: auto, auto, auto, 44px 44px, 44px 44px;
+  }
+
+  /* ---------- header ---------- */
   header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--panel);
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 13px 26px;
+    background: rgba(4, 8, 16, .8); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
   }
-  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
-  header .status { font-size: 13px; color: var(--muted); }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555; margin-right: 6px; }
-  .dot.ok { background: var(--info); }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 22px; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 18px; }
-  h2 { font-size: 15px; margin: 0 0 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-  input, button { font: inherit; }
-  input {
-    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
-    padding: 9px 12px; border-radius: 8px; outline: none;
+  header::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), var(--violet), transparent);
+    opacity: .55;
   }
-  input:focus { border-color: var(--accent); }
+  .logo { display: flex; align-items: baseline; gap: 10px; }
+  .logo h1 {
+    margin: 0; font-family: var(--display); font-size: 17px; letter-spacing: 3px;
+    background: linear-gradient(90deg, var(--cyan), var(--violet));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .logo .sub { font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: 2px; }
+  .status { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #4a5568; }
+  .dot.ok { background: var(--info); box-shadow: 0 0 8px var(--info); animation: pulse 2.2s ease-in-out infinite; }
+  .dot.bad { background: var(--crit); box-shadow: 0 0 8px var(--crit); }
+  @keyframes pulse { 50% { opacity: .45; } }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 26px 22px 60px; }
+
+  /* ---------- cards ---------- */
+  .card {
+    position: relative;
+    background: var(--panel); backdrop-filter: blur(14px);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 22px; margin-bottom: 20px;
+    transition: border-color .25s;
+  }
+  .card:hover { border-color: rgba(96, 180, 255, .26); }
+  .card::before {  /* corner brackets */
+    content: ""; position: absolute; top: -1px; left: -1px; width: 22px; height: 22px;
+    border-top: 2px solid var(--border-hot); border-left: 2px solid var(--border-hot);
+    border-top-left-radius: 14px; opacity: .6; pointer-events: none;
+  }
+  .card::after {
+    content: ""; position: absolute; bottom: -1px; right: -1px; width: 22px; height: 22px;
+    border-bottom: 2px solid rgba(139,123,255,.45); border-right: 2px solid rgba(139,123,255,.45);
+    border-bottom-right-radius: 14px; opacity: .6; pointer-events: none;
+  }
+  h2 {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--display); font-size: 12px; font-weight: 500;
+    margin: 0 0 16px; color: var(--cyan); text-transform: uppercase; letter-spacing: 2.5px;
+  }
+  h2 .id-chip { font-family: var(--mono); color: var(--violet); }
+  .card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .card-head h2 { margin: 0; }
+
+  /* ---------- controls ---------- */
+  input, select, button { font: inherit; }
+  input, select {
+    background: var(--inset); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 13px; border-radius: 9px; outline: none; font-family: var(--mono); font-size: 13px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input:focus, select:focus { border-color: var(--border-hot); box-shadow: 0 0 0 3px rgba(56,225,255,.08); }
   button {
-    background: var(--accent2); color: #fff; border: none; padding: 9px 16px;
-    border-radius: 8px; cursor: pointer; transition: .15s;
+    border: none; padding: 9px 17px; border-radius: 9px; cursor: pointer;
+    font-weight: 600; font-size: 13.5px; letter-spacing: .3px; color: #041018;
+    background: linear-gradient(100deg, var(--cyan), var(--violet));
+    transition: filter .15s, box-shadow .2s, transform .1s;
   }
-  button:hover { background: var(--accent); }
-  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
-  button.ghost:hover { border-color: var(--accent); color: var(--text); }
-  button:disabled { opacity: .5; cursor: not-allowed; }
+  button:hover { filter: brightness(1.12); box-shadow: 0 0 16px rgba(56,225,255,.35); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+  button.ghost {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+  }
+  button.ghost:hover { border-color: var(--border-hot); color: var(--text); box-shadow: 0 0 12px rgba(56,225,255,.15); }
+  button.danger { background: linear-gradient(100deg, var(--crit), var(--magenta)); color: #fff; }
+  a.ext-link {
+    display: inline-block; padding: 8px 15px; border-radius: 9px; text-decoration: none;
+    font-weight: 600; font-size: 12.5px; font-family: var(--mono); letter-spacing: .5px;
+    border: 1px solid var(--border); color: var(--muted); transition: .2s;
+  }
+  a.ext-link:hover { border-color: var(--border-hot); color: var(--cyan); box-shadow: 0 0 12px rgba(56,225,255,.15); }
+  .close-x { background: transparent; border: none; color: var(--muted); font-size: 16px; padding: 2px 8px; cursor: pointer; }
+  .close-x:hover { color: var(--text); box-shadow: none; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
-  tr:hover td { background: var(--panel2); }
-  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
-  .lvl-CRITICAL { background: rgba(255,92,108,.15); color: var(--crit); }
-  .lvl-ERROR { background: rgba(255,143,92,.15); color: var(--err); }
-  .lvl-WARNING { background: rgba(255,210,92,.15); color: var(--warn); }
-  .lvl-INFO { background: rgba(110,231,168,.15); color: var(--info); }
-  .msg { max-width: 460px; }
+
+  /* segmented control (vector | hybrid) */
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+  .seg button { background: transparent; color: var(--muted); border-radius: 0; padding: 6px 14px; font-family: var(--mono); font-size: 12px; }
+  .seg button:hover { box-shadow: none; filter: none; color: var(--text); }
+  .seg button.on { background: rgba(56,225,255,.13); color: var(--cyan); }
+
+  /* ---------- tables ---------- */
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid rgba(96,180,255,.08); vertical-align: top; }
+  th { color: var(--muted); font-family: var(--mono); font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.5px; }
+  tr:hover > td { background: rgba(56,225,255,.04); }
+  td.mono, .mono { font-family: var(--mono); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-family: var(--mono); }
+  th.num { text-align: right; }
+
+  .badge {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: 1px;
+    padding: 2px 9px; border-radius: 5px; white-space: nowrap; border: 1px solid;
+  }
+  .lvl-CRITICAL { color: var(--crit); border-color: rgba(255,77,106,.4); background: rgba(255,77,106,.10); }
+  .lvl-ERROR    { color: var(--err);  border-color: rgba(251,139,36,.4); background: rgba(251,139,36,.10); }
+  .lvl-WARNING  { color: var(--warn); border-color: rgba(255,224,138,.35); background: rgba(255,224,138,.08); }
+  .lvl-INFO     { color: var(--info); border-color: rgba(61,220,151,.4); background: rgba(61,220,151,.10); }
+
+  .msg { max-width: 470px; }
   .muted { color: var(--muted); font-size: 13px; }
   .hidden { display: none; }
-  .result-panel { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-top: 12px; }
-  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 14px; font-size: 14px; }
-  .kv .k { color: var(--muted); }
-  .sim-item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-  .sim-item:last-child { border: none; }
-  .bar { height: 6px; border-radius: 4px; background: var(--accent2); }
-  .err-text { color: var(--crit); font-size: 13px; }
-  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: s .7s linear infinite; }
+  .err-text { color: var(--crit); font-size: 13px; font-family: var(--mono); }
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--cyan); border-radius: 50%; animation: s .7s linear infinite; vertical-align: -2px; }
   @keyframes s { to { transform: rotate(360deg); } }
   .actions button { padding: 5px 11px; font-size: 12px; }
+
+  .result-panel { background: var(--panel2); border: 1px solid var(--border); border-radius: 11px; padding: 16px 18px; margin-top: 12px; }
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 7px 16px; font-size: 13.5px; }
+  .kv .k { color: var(--muted); font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 1px; padding-top: 2px; }
+
+  /* ---------- stats strip ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .tile {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 11px; padding: 13px 15px;
+  }
+  .tile .t-label { font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 5px; }
+  .tile .t-value { font-family: var(--display); font-size: 23px; font-weight: 500; letter-spacing: 1px; }
+  .tile .t-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+  .cov-track { height: 5px; border-radius: 3px; background: var(--inset); margin-top: 9px; overflow: hidden; }
+  .cov-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--cyan), var(--violet)); }
+  /* level distribution: segmented bar with 2px gaps + labeled legend */
+  .dist-bar { display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 10px; }
+  .dist-seg { min-width: 3px; }
+  .dist-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 9px; }
+  .dist-legend .li { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11.5px; color: var(--text); }
+  .dist-legend .swatch { width: 9px; height: 9px; border-radius: 2px; }
+
+  /* ---------- similar results ---------- */
+  .sim-item { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid rgba(96,180,255,.08); font-size: 13.5px; }
+  .sim-item:last-child { border: none; }
+  .sim-rank { font-family: var(--mono); color: var(--violet); font-size: 12px; min-width: 24px; padding-top: 2px; }
+  .bar-track { height: 5px; border-radius: 3px; background: var(--inset); margin-top: 5px; width: 130px; margin-left: auto; }
+  .bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--violet), var(--cyan)); }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; padding: 1px 7px; border-radius: 4px; border: 1px solid var(--border); color: var(--muted); }
+  .tag.sem { color: var(--cyan); border-color: rgba(56,225,255,.35); }
+  .tag.kw  { color: var(--magenta); border-color: rgba(255,92,225,.35); }
+
+  /* ---------- agent pipeline stepper ---------- */
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 6px 0 14px; flex-wrap: wrap; }
+  .pnode {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 5px 12px; border: 1px solid var(--border); border-radius: 7px; color: var(--muted);
+    background: var(--inset); white-space: nowrap;
+  }
+  .pnode.done { color: var(--info); border-color: rgba(61,220,151,.4); }
+  .pnode.active { color: var(--cyan); border-color: var(--border-hot); box-shadow: 0 0 12px rgba(56,225,255,.25); animation: pulse 1.4s ease-in-out infinite; }
+  .pnode.skip { opacity: .35; text-decoration: line-through; }
+  .plink { width: 22px; height: 1px; background: var(--border); flex: none; }
+
+  .purpose-badge { font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 5px;
+                   background: var(--inset); border: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+  tr.trace-row { cursor: pointer; }
+  .trace-detail td { background: var(--inset); }
+  .trace-detail pre { margin: 6px 0 12px; padding: 11px 13px; background: var(--bg); border: 1px solid var(--border);
+                      border-radius: 9px; white-space: pre-wrap; word-break: break-word; font-family: var(--mono);
+                      font-size: 12px; max-height: 260px; overflow-y: auto; }
+  .trace-detail .k { color: var(--muted); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; }
+
+  /* ---------- login ---------- */
+  #loginCard { max-width: 520px; margin: 8vh auto 0; }
+  .login-title { font-family: var(--display); letter-spacing: 4px; font-size: 14px; color: var(--text); margin-bottom: 4px; }
 </style>
 </head>
 <body>
+
 <header>
-  <h1>🔍 Log Analyzer</h1>
-  <div class="status"><span id="dot" class="dot"></span><span id="statusText">checking…</span></div>
+  <div class="logo">
+    <h1>LOGSENTINEL</h1>
+    <span class="sub">HYBRID LOG INTELLIGENCE</span>
+  </div>
+  <div class="status"><span id="dot" class="dot"></span><span id="statusText">LINKING…</span></div>
 </header>
 
 <div class="wrap">
 
   <!-- LOGIN -->
   <div class="card" id="loginCard">
-    <h2>Login</h2>
+    <div class="login-title">ACCESS CONTROL</div>
+    <div class="muted" style="margin-bottom:14px;">Authenticate to open the console.</div>
     <div class="row">
-      <input id="username" placeholder="username" value="admin">
-      <input id="password" type="password" placeholder="password" value="password123">
-      <button id="loginBtn" onclick="login()">Sign in</button>
+      <input id="username" placeholder="username" value="admin" autocomplete="username">
+      <input id="password" type="password" placeholder="password" value="password123" autocomplete="current-password">
+      <button id="loginBtn" onclick="login()">Engage</button>
       <span id="loginErr" class="err-text"></span>
     </div>
   </div>
 
   <!-- DASHBOARD -->
   <div id="dashboard" class="hidden">
+
+    <!-- STATS -->
+    <div class="card" id="statsCard">
+      <div class="card-head">
+        <h2>⬡ System Telemetry</h2>
+        <button class="ghost" onclick="loadStats()">↻ Refresh</button>
+      </div>
+      <div class="tiles" id="statsTiles"><span class="muted">Loading…</span></div>
+    </div>
+
+    <!-- LOG STREAM + SEARCH -->
     <div class="card">
-      <div class="row" style="justify-content: space-between;">
-        <h2 style="margin:0;">Logs</h2>
+      <div class="card-head">
+        <h2>⬡ Log Stream</h2>
         <div class="row">
-          <button class="ghost" onclick="loadLogs()">↻ Refresh</button>
+          <input id="searchQ" placeholder="keyword search…" style="width:210px;" onkeydown="if(event.key==='Enter')runSearch()">
+          <select id="searchLevel">
+            <option value="">all levels</option>
+            <option>CRITICAL</option><option>ERROR</option><option>WARNING</option><option>INFO</option>
+          </select>
+          <button onclick="runSearch()">Scan</button>
+          <button class="ghost" onclick="clearSearch()">Reset</button>
           <button class="ghost" onclick="logout()">Logout</button>
         </div>
       </div>
-      <table id="logsTable">
-        <thead>
-          <tr><th>ID</th><th>Level</th><th>Message</th><th>User</th><th>Actions</th></tr>
-        </thead>
-        <tbody id="logsBody"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
-      </table>
+      <div class="muted hidden" id="searchNote" style="margin-bottom:8px;"></div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Level</th><th>Message</th><th>User</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="logsBody"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- CLASSIFY PANEL -->
     <div class="card hidden" id="classifyCard">
-      <h2>🤖 AI Classification — Log #<span id="clfId"></span></h2>
+      <div class="card-head">
+        <h2>⬡ AI Classification <span class="id-chip">LOG #<span id="clfId"></span></span></h2>
+        <button class="close-x" onclick="hide('classifyCard')">✕</button>
+      </div>
       <div id="clfBody"></div>
     </div>
 
     <!-- SIMILAR PANEL -->
     <div class="card hidden" id="similarCard">
-      <h2>🧲 Similar Logs to #<span id="simId"></span></h2>
+      <div class="card-head">
+        <h2>⬡ Similarity Matrix <span class="id-chip">LOG #<span id="simId"></span></span></h2>
+        <div class="row">
+          <div class="seg">
+            <button id="modeVector" class="on" onclick="setSimMode('vector')">VECTOR</button>
+            <button id="modeHybrid" onclick="setSimMode('hybrid')">HYBRID · RRF</button>
+          </div>
+          <button class="close-x" onclick="hide('similarCard')">✕</button>
+        </div>
+      </div>
+      <div class="muted" id="simModeNote" style="margin-bottom:4px;"></div>
       <div id="simBody"></div>
     </div>
 
-    <!-- ANALYZE PANEL (LangGraph agent: classify → similar → human approval → report) -->
+    <!-- ANALYZE PANEL (LangGraph agent) -->
     <div class="card hidden" id="analyzeCard">
-      <h2>🧠 Agent Analysis — Log #<span id="anaId"></span></h2>
+      <div class="card-head">
+        <h2>⬡ Agent Pipeline <span class="id-chip">LOG #<span id="anaId"></span></span></h2>
+        <button class="close-x" onclick="hide('analyzeCard')">✕</button>
+      </div>
+      <div class="pipeline" id="pipeline"></div>
       <div id="anaBody"></div>
+    </div>
+
+    <!-- LLM TRACES -->
+    <div class="card" id="tracesCard">
+      <div class="card-head">
+        <h2>⬡ LLM Telemetry</h2>
+        <div class="row">
+          <select id="purposeFilter" onchange="renderTraces()"><option value="">all purposes</option></select>
+          <button class="ghost" onclick="loadTraces()">↻ Refresh</button>
+          <a id="langfuseLink" class="ext-link hidden" href="#" target="_blank" rel="noopener"
+             title="Same calls, traced to Langfuse — compare against this local JSONL view">Langfuse ↗</a>
+        </div>
+      </div>
+      <div class="tiles" id="traceTiles" style="margin-bottom:16px;"></div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Time</th><th>Purpose</th><th>Log</th><th class="num">In tok</th>
+                <th class="num">Out tok</th><th class="num">Latency</th><th class="num">Cost</th><th></th></tr>
+          </thead>
+          <tbody id="tracesBody"><tr><td colspan="8" class="muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="muted" style="margin-top:8px;">Click a row to inspect the exact prompt and response.</div>
     </div>
   </div>
 
@@ -126,20 +349,40 @@
 <script>
 const API = "";  // same origin
 let token = localStorage.getItem("token") || null;
+let simMode = "vector";
+let currentSimId = null;
+
+const LEVEL_ORDER = ["CRITICAL", "ERROR", "WARNING", "INFO"];
+const LEVEL_COLOR = { CRITICAL: "#ff4d6a", ERROR: "#fb8b24", WARNING: "#ffe08a", INFO: "#3ddc97" };
 
 function authHeaders() { return { "Authorization": "Bearer " + token }; }
+function hide(id) { document.getElementById(id).classList.add("hidden"); }
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
 
 async function checkHealth() {
+  const dot = document.getElementById("dot");
   try {
     const r = await fetch(API + "/health");
     const d = await r.json();
-    document.getElementById("dot").classList.add("ok");
-    document.getElementById("statusText").textContent = d.status + " · " + d.model.replace("models/", "");
+    dot.classList.add("ok");
+    document.getElementById("statusText").textContent =
+      "ONLINE · " + d.model.replace("models/", "").toUpperCase();
+    if (d.langfuse) {
+      const a = document.getElementById("langfuseLink");
+      a.href = d.langfuse;
+      a.classList.remove("hidden");
+    }
   } catch (e) {
-    document.getElementById("statusText").textContent = "API offline";
+    dot.classList.add("bad");
+    document.getElementById("statusText").textContent = "API OFFLINE";
   }
 }
 
+// ============================================
+// AUTH
+// ============================================
 async function login() {
   const btn = document.getElementById("loginBtn");
   const err = document.getElementById("loginErr");
@@ -154,7 +397,7 @@ async function login() {
         password: document.getElementById("password").value,
       }),
     });
-    if (!r.ok) throw new Error("Invalid credentials");
+    if (!r.ok) throw new Error("ACCESS DENIED — invalid credentials");
     const d = await r.json();
     token = d.access_token;
     localStorage.setItem("token", token);
@@ -162,7 +405,7 @@ async function login() {
   } catch (e) {
     err.textContent = e.message;
   } finally {
-    btn.disabled = false; btn.textContent = "Sign in";
+    btn.disabled = false; btn.textContent = "Engage";
   }
 }
 
@@ -175,11 +418,67 @@ function logout() {
 function showDashboard() {
   document.getElementById("loginCard").classList.add("hidden");
   document.getElementById("dashboard").classList.remove("hidden");
+  loadStats();
   loadLogs();
+  loadTraces();
 }
 
+// ============================================
+// STATS (GET /stats)
+// ============================================
+async function loadStats() {
+  const el = document.getElementById("statsTiles");
+  try {
+    const r = await fetch(API + "/stats", { headers: authHeaders() });
+    if (r.status === 401) return logout();
+    const d = await r.json();
+    const covPct = d.total_logs ? Math.round(d.logs_with_embeddings / d.total_logs * 100) : 0;
+    const total = d.total_logs || 0;
+
+    const segs = LEVEL_ORDER.filter(l => d.by_level[l]).map(l => {
+      const pct = total ? (d.by_level[l] / total * 100) : 0;
+      return `<div class="dist-seg" style="flex:${d.by_level[l]}; background:${LEVEL_COLOR[l]};" title="${l}: ${d.by_level[l]} (${pct.toFixed(0)}%)"></div>`;
+    }).join("");
+    const legend = LEVEL_ORDER.filter(l => d.by_level[l]).map(l =>
+      `<span class="li"><span class="swatch" style="background:${LEVEL_COLOR[l]};"></span>${l} · ${d.by_level[l]}</span>`
+    ).join("");
+
+    el.innerHTML = `
+      <div class="tile"><div class="t-label">Logs indexed</div><div class="t-value">${total.toLocaleString()}</div></div>
+      <div class="tile"><div class="t-label">Embedding coverage</div><div class="t-value">${covPct}%</div>
+        <div class="t-sub">${d.logs_with_embeddings.toLocaleString()} / ${total.toLocaleString()} vectors</div>
+        <div class="cov-track"><div class="cov-fill" style="width:${covPct}%;"></div></div></div>
+      <div class="tile" style="grid-column: span 2; min-width: 260px;">
+        <div class="t-label">Severity distribution</div>
+        <div class="dist-bar">${segs || '<span class="muted">no data</span>'}</div>
+        <div class="dist-legend">${legend}</div></div>`;
+  } catch (e) {
+    el.innerHTML = `<span class="err-text">${escapeHtml(e.message)}</span>`;
+  }
+}
+
+// ============================================
+// LOG STREAM (GET /logs) + KEYWORD SEARCH (GET /search)
+// ============================================
 function levelBadge(lvl) {
   return `<span class="badge lvl-${lvl}">${lvl}</span>`;
+}
+
+function renderLogRows(logs) {
+  const body = document.getElementById("logsBody");
+  if (!logs.length) { body.innerHTML = '<tr><td colspan="5" class="muted">No matching logs.</td></tr>'; return; }
+  body.innerHTML = logs.map(l => `
+    <tr>
+      <td class="mono">${l.id}</td>
+      <td>${levelBadge(l.level)}</td>
+      <td class="msg">${escapeHtml(l.message)}</td>
+      <td class="muted">${escapeHtml(l.user || "—")}</td>
+      <td class="actions row">
+        <button onclick="classify(${l.id})">Classify</button>
+        <button class="ghost" onclick="similar(${l.id})">Similar</button>
+        <button class="ghost" onclick="analyze(${l.id})">⬡ Analyze</button>
+      </td>
+    </tr>`).join("");
 }
 
 async function loadLogs() {
@@ -188,31 +487,50 @@ async function loadLogs() {
   try {
     const r = await fetch(API + "/logs", { headers: authHeaders() });
     if (r.status === 401) return logout();
-    const logs = await r.json();
-    if (!logs.length) { body.innerHTML = '<tr><td colspan="5" class="muted">No logs.</td></tr>'; return; }
-    body.innerHTML = logs.map(l => `
-      <tr>
-        <td>${l.id}</td>
-        <td>${levelBadge(l.level)}</td>
-        <td class="msg">${escapeHtml(l.message)}</td>
-        <td class="muted">${l.user || "—"}</td>
-        <td class="actions row">
-          <button onclick="classify(${l.id})">Classify</button>
-          <button class="ghost" onclick="similar(${l.id})">Similar</button>
-          <button class="ghost" onclick="analyze(${l.id})">🧠 Analyze</button>
-        </td>
-      </tr>`).join("");
+    renderLogRows(await r.json());
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="5" class="err-text">${e.message}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="5" class="err-text">${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
+async function runSearch() {
+  const q = document.getElementById("searchQ").value.trim();
+  const level = document.getElementById("searchLevel").value;
+  const note = document.getElementById("searchNote");
+  const body = document.getElementById("logsBody");
+  if (!q && !level) return loadLogs();
+  body.innerHTML = '<tr><td colspan="5" class="muted"><span class="spin"></span> Scanning…</td></tr>';
+  try {
+    const params = new URLSearchParams({ q, limit: 100 });
+    if (level) params.set("level", level);
+    const r = await fetch(API + "/search?" + params, { headers: authHeaders() });
+    if (r.status === 401) return logout();
+    const logs = await r.json();
+    note.classList.remove("hidden");
+    note.textContent = `keyword scan: ${logs.length} hit${logs.length === 1 ? "" : "s"}`
+      + (q ? ` for "${q}"` : "") + (level ? ` · level ${level}` : "");
+    renderLogRows(logs);
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="5" class="err-text">${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function clearSearch() {
+  document.getElementById("searchQ").value = "";
+  document.getElementById("searchLevel").value = "";
+  document.getElementById("searchNote").classList.add("hidden");
+  loadLogs();
+}
+
+// ============================================
+// CLASSIFY (POST /logs/{id}/classify)
+// ============================================
 async function classify(id) {
   const card = document.getElementById("classifyCard");
   const bodyEl = document.getElementById("clfBody");
   document.getElementById("clfId").textContent = id;
   card.classList.remove("hidden");
-  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Asking Gemini…</span>';
+  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Interrogating Gemini…</span>';
   card.scrollIntoView({ behavior: "smooth", block: "nearest" });
   try {
     const r = await fetch(API + `/logs/${id}/classify`, { method: "POST", headers: authHeaders() });
@@ -220,73 +538,120 @@ async function classify(id) {
     const d = await r.json();
     bodyEl.innerHTML = `<div class="result-panel"><div class="kv">
       <div class="k">Severity</div><div>${levelBadge((d.severity||"").toUpperCase())}</div>
-      <div class="k">Category</div><div>${escapeHtml(d.category||"—")}</div>
+      <div class="k">Category</div><div class="mono">${escapeHtml(d.category||"—")}</div>
       <div class="k">Likely cause</div><div>${escapeHtml(d.likely_cause||"—")}</div>
       <div class="k">Suggested action</div><div>${escapeHtml(d.suggested_action||"—")}</div>
     </div></div>`;
+    loadTraces();  // a Gemini call just happened — show it
   } catch (e) {
-    bodyEl.innerHTML = `<span class="err-text">${e.message}</span>`;
+    bodyEl.innerHTML = `<span class="err-text">${escapeHtml(e.message)}</span>`;
   }
 }
 
+// ============================================
+// SIMILARITY (GET /logs/{id}/similar?mode=vector|hybrid)
+// ============================================
+function setSimMode(mode) {
+  simMode = mode;
+  document.getElementById("modeVector").classList.toggle("on", mode === "vector");
+  document.getElementById("modeHybrid").classList.toggle("on", mode === "hybrid");
+  if (currentSimId != null) similar(currentSimId);
+}
+
 async function similar(id) {
+  currentSimId = id;
   const card = document.getElementById("similarCard");
   const bodyEl = document.getElementById("simBody");
+  const noteEl = document.getElementById("simModeNote");
   document.getElementById("simId").textContent = id;
+  document.getElementById("modeVector").classList.toggle("on", simMode === "vector");
+  document.getElementById("modeHybrid").classList.toggle("on", simMode === "hybrid");
   card.classList.remove("hidden");
-  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Searching embeddings…</span>';
+  noteEl.textContent = simMode === "hybrid"
+    ? "pgvector cosine + Postgres full-text, fused with Reciprocal Rank Fusion"
+    : "pure pgvector cosine distance over 3072-dim Gemini embeddings";
+  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Searching embedding space…</span>';
   card.scrollIntoView({ behavior: "smooth", block: "nearest" });
   try {
-    const r = await fetch(API + `/logs/${id}/similar?limit=5`, { headers: authHeaders() });
+    const r = await fetch(API + `/logs/${id}/similar?limit=5&mode=${simMode}`, { headers: authHeaders() });
     if (r.status === 401) return logout();
     const d = await r.json();
-    if (!d.count) { bodyEl.innerHTML = '<span class="muted">No similar logs (embedding missing).</span>'; return; }
-    bodyEl.innerHTML = '<div class="result-panel">' + d.similar_logs.map(s => {
-      const pct = Math.round(s.similarity * 100);
+    if (!d.count) {
+      bodyEl.innerHTML = `<span class="muted">${escapeHtml(d.note || "No similar logs (embedding missing — run db_seed.py).")}</span>`;
+      return;
+    }
+    const vecIds = new Set(d.vector_ids || []);
+    const kwIds = new Set(d.keyword_ids || []);
+    bodyEl.innerHTML = '<div class="result-panel">' + d.similar_logs.map((s, i) => {
+      const sim = Number(s.similarity);
+      const pct = Math.round(sim * 100);
+      const tags = simMode === "hybrid"
+        ? `${vecIds.has(s.id) ? '<span class="tag sem">SEMANTIC</span>' : ""}
+           ${kwIds.has(s.id) ? '<span class="tag kw">KEYWORD' + (s.rank != null ? " " + Number(s.rank).toFixed(3) : "") + "</span>" : ""}`
+        : "";
+      const score = simMode === "hybrid" && s.rrf_score != null
+        ? `<div class="mono muted" style="font-size:11px;">RRF ${Number(s.rrf_score).toFixed(5)}</div>` : "";
       return `<div class="sim-item">
-        <div>${levelBadge(s.level)} <span style="margin-left:6px;">${escapeHtml(s.message)}</span>
-          <div class="muted">#${s.id} · ${s.user_name || "—"}</div></div>
-        <div style="text-align:right; min-width:120px;">
-          <div>${pct}%</div>
-          <div class="bar" style="width:${pct}%; margin-left:auto;"></div>
+        <div class="sim-rank">${String(i + 1).padStart(2, "0")}</div>
+        <div style="flex:1;">${levelBadge(s.level)} <span style="margin-left:6px;">${escapeHtml(s.message)}</span>
+          <div class="muted mono" style="font-size:11.5px; margin-top:3px;">#${s.id}${s.user_name ? " · " + escapeHtml(s.user_name) : ""} ${tags}</div></div>
+        <div style="text-align:right; min-width:135px;">
+          <div class="mono">${pct}% cosine</div>
+          ${score}
+          <div class="bar-track"><div class="bar" style="width:${pct}%;"></div></div>
         </div>
       </div>`;
     }).join("") + "</div>";
   } catch (e) {
-    bodyEl.innerHTML = `<span class="err-text">${e.message}</span>`;
+    bodyEl.innerHTML = `<span class="err-text">${escapeHtml(e.message)}</span>`;
   }
 }
 
 // ============================================
 // LANGGRAPH AGENT PIPELINE
 // ============================================
-// The graph pauses server-side at interrupt(), but to the browser it's
-// just two plain requests:
-//   1. POST /logs/{id}/analyze          → returns "awaiting_approval" + thread_id
+// The graph pauses server-side at interrupt(); to the browser it's two requests:
+//   1. POST /logs/{id}/analyze            → "awaiting_approval" + thread_id
 //   2. POST /analysis/{thread_id}/approve → resumes the graph, returns the report
 // The thread_id is the claim ticket for the frozen run in checkpoints.db.
 
-// State 1: kick off the graph, run until the interrupt.
+const PIPE_NODES = ["fetch", "classify", "similar", "approval", "report"];
+
+function renderPipeline(states) {
+  // states: {fetch:"done"|"active"|""|"skip", ...}
+  document.getElementById("pipeline").innerHTML = PIPE_NODES.map((n, i) =>
+    `<span class="pnode ${states[n] || ""}">${n}</span>` +
+    (i < PIPE_NODES.length - 1 ? '<span class="plink"></span>' : "")
+  ).join("");
+}
+
 async function analyze(id) {
   const card = document.getElementById("analyzeCard");
   const bodyEl = document.getElementById("anaBody");
   document.getElementById("anaId").textContent = id;
   card.classList.remove("hidden");
-  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Running agent graph: fetch → classify → similar…</span>';
+  renderPipeline({ fetch: "active", classify: "active", similar: "active" });
+  bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Agent graph running: fetch → classify → similar…</span>';
   card.scrollIntoView({ behavior: "smooth", block: "nearest" });
   try {
     const r = await fetch(API + `/logs/${id}/analyze`, { method: "POST", headers: authHeaders() });
     if (r.status === 401) return logout();
     if (!r.ok) { const e = await r.json(); throw new Error(e.detail || "Analysis failed"); }
     const d = await r.json();
-    if (d.status === "awaiting_approval") renderApproval(d);
-    else renderReport(d.report, null);  // graph finished without pausing
+    if (d.status === "awaiting_approval") {
+      renderPipeline({ fetch: "done", classify: "done", similar: "done", approval: "active" });
+      renderApproval(d);
+      loadTraces();  // the classify calls are already in the trace file
+    } else {
+      renderPipeline({ fetch: "done", classify: "done", similar: "done", approval: "done", report: "done" });
+      renderReport(d.report, null);
+    }
   } catch (e) {
-    bodyEl.innerHTML = `<span class="err-text">${e.message}</span>`;
+    renderPipeline({ fetch: "skip" });
+    bodyEl.innerHTML = `<span class="err-text">${escapeHtml(e.message)}</span>`;
   }
 }
 
-// State 2: the graph is paused — show the human what they're approving.
 function renderApproval(d) {
   const bodyEl = document.getElementById("anaBody");
   const c = d.classification || {};
@@ -296,25 +661,26 @@ function renderApproval(d) {
       <div class="kv">
         <div class="k">Log</div><div>${escapeHtml(d.log.message)}</div>
         <div class="k">Severity</div><div>${levelBadge((c.severity || "").toUpperCase())}</div>
-        <div class="k">Category</div><div>${escapeHtml(c.category || "—")}</div>
+        <div class="k">Category</div><div class="mono">${escapeHtml(c.category || "—")}</div>
         <div class="k">Likely cause</div><div>${escapeHtml(c.likely_cause || "—")}</div>
-        <div class="k">Attempts</div><div>${d.prompt && d.prompt.attempts || "—"}</div>
-        <div class="k">Similar logs</div><div>${sims.length} found</div>
+        <div class="k">Attempts</div><div class="mono">${d.prompt && d.prompt.attempts || "—"}</div>
+        <div class="k">Similar logs</div><div class="mono">${sims.length} found</div>
       </div>
     </div>
     <div class="result-panel">
-      <div style="margin-bottom:10px;">⏸ ${escapeHtml((d.prompt && d.prompt.question) || "Generate an incident report?")}
-        <span class="muted">(graph is paused server-side, waiting for you)</span></div>
+      <div style="margin-bottom:12px;">⏸ ${escapeHtml((d.prompt && d.prompt.question) || "Generate an incident report?")}
+        <span class="muted">(graph frozen server-side, awaiting operator)</span></div>
       <div class="row">
-        <button onclick="sendDecision('${d.thread_id}', true)">✅ Approve</button>
-        <button class="ghost" onclick="sendDecision('${d.thread_id}', false)">✖ Reject</button>
+        <button onclick="sendDecision('${d.thread_id}', true)">✔ Approve</button>
+        <button class="ghost danger" onclick="sendDecision('${d.thread_id}', false)" style="border:none;">✕ Reject</button>
       </div>
     </div>`;
 }
 
-// State 3: hand the decision back — Command(resume=…) on the server side.
 async function sendDecision(threadId, approved) {
   const bodyEl = document.getElementById("anaBody");
+  renderPipeline({ fetch: "done", classify: "done", similar: "done", approval: "done",
+                   report: approved ? "active" : "skip" });
   bodyEl.innerHTML = '<span class="spin"></span> <span class="muted">Resuming graph with your decision…</span>';
   try {
     const r = await fetch(API + `/analysis/${threadId}/approve`, {
@@ -325,24 +691,115 @@ async function sendDecision(threadId, approved) {
     if (r.status === 401) return logout();
     if (!r.ok) { bodyEl.innerHTML = '<span class="err-text">No paused analysis found for that thread.</span>'; return; }
     const d = await r.json();
+    renderPipeline({ fetch: "done", classify: "done", similar: "done", approval: "done",
+                     report: approved ? "done" : "skip" });
     renderReport(d.report, d.approved);
   } catch (e) {
-    bodyEl.innerHTML = `<span class="err-text">${e.message}</span>`;
+    bodyEl.innerHTML = `<span class="err-text">${escapeHtml(e.message)}</span>`;
   }
 }
 
-// Terminal state: show the report (or the rejection note).
 function renderReport(report, approved) {
   const bodyEl = document.getElementById("anaBody");
-  const label = approved === false ? "🚫 Rejected — no report generated" : "📄 Incident Report";
+  const label = approved === false ? "⛔ REJECTED — no report generated" : "▤ INCIDENT REPORT";
   bodyEl.innerHTML = `<div class="result-panel">
-    <div class="muted" style="margin-bottom:8px;">${label}</div>
+    <div class="muted mono" style="margin-bottom:8px; letter-spacing:1px;">${label}</div>
     <div style="white-space:pre-wrap;">${escapeHtml(report)}</div>
   </div>`;
+  loadTraces();  // agent run finished — its classify/report calls are in the file now
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+// ============================================
+// LLM TRACE DASHBOARD (GET /llm-calls)
+// ============================================
+// The server replays llm_calls.jsonl; all aggregation happens here.
+
+let traceCalls = [];
+let traceTotal = 0;
+
+function fmtCompact(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 10000) return (n / 1e3).toFixed(1) + "K";
+  return n.toLocaleString();
+}
+function fmtCost(c) {
+  if (!c) return "$0";
+  if (c < 0.001) return "<$0.001";
+  return "$" + c.toFixed(3);
+}
+
+async function loadTraces() {
+  const body = document.getElementById("tracesBody");
+  try {
+    const r = await fetch(API + "/llm-calls?limit=100", { headers: authHeaders() });
+    if (r.status === 401) return logout();
+    const d = await r.json();
+    traceCalls = d.calls || [];
+    traceTotal = d.count || 0;
+
+    // purpose filter options (preserve selection)
+    const sel = document.getElementById("purposeFilter");
+    const chosen = sel.value;
+    const purposes = [...new Set(traceCalls.map(c => c.purpose).filter(Boolean))];
+    sel.innerHTML = '<option value="">all purposes</option>' +
+      purposes.map(p => `<option${p === chosen ? " selected" : ""}>${escapeHtml(p)}</option>`).join("");
+
+    renderTraces();
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="8" class="err-text">${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function renderTraces() {
+  const body = document.getElementById("tracesBody");
+  const tiles = document.getElementById("traceTiles");
+  const filter = document.getElementById("purposeFilter").value;
+  const calls = filter ? traceCalls.filter(c => c.purpose === filter) : traceCalls;
+
+  if (!calls.length) {
+    tiles.innerHTML = "";
+    body.innerHTML = '<tr><td colspan="8" class="muted">No LLM calls traced yet — run a Classify or Analyze above.</td></tr>';
+    return;
+  }
+
+  const tokens = calls.reduce((s, c) => s + (c.total_tokens || 0), 0);
+  const cost = calls.reduce((s, c) => s + (c.cost_usd || 0), 0);
+  const lat = calls.filter(c => c.latency_ms != null);
+  const avgLat = lat.length ? Math.round(lat.reduce((s, c) => s + c.latency_ms, 0) / lat.length) : 0;
+  const errors = calls.filter(c => c.error).length;
+  tiles.innerHTML = `
+    <div class="tile"><div class="t-label">Calls</div><div class="t-value">${fmtCompact(filter ? calls.length : traceTotal)}</div>
+      <div class="t-sub">showing last ${calls.length}${filter ? " · " + escapeHtml(filter) : ""}</div></div>
+    <div class="tile"><div class="t-label">Tokens</div><div class="t-value">${fmtCompact(tokens)}</div></div>
+    <div class="tile"><div class="t-label">Cost</div><div class="t-value">${fmtCost(cost)}</div></div>
+    <div class="tile"><div class="t-label">Avg latency</div><div class="t-value">${avgLat.toLocaleString()}<span style="font-size:13px;"> ms</span></div></div>
+    <div class="tile"><div class="t-label">Errors</div>
+      <div class="t-value" ${errors ? 'style="color:var(--crit);"' : ""}>${errors ? "⚠ " + errors : "0"}</div></div>`;
+
+  body.innerHTML = calls.map((c, i) => {
+    const t = c.ts ? new Date(c.ts).toLocaleTimeString() : "—";
+    const logRef = c.log_id != null ? "#" + c.log_id + (c.attempt ? " · try " + c.attempt : "") : "—";
+    return `
+    <tr class="trace-row" onclick="toggleTrace(${i})">
+      <td class="muted mono">${t}</td>
+      <td><span class="purpose-badge">${escapeHtml(c.purpose || "—")}</span></td>
+      <td class="muted mono">${logRef}</td>
+      <td class="num">${(c.prompt_tokens ?? "—").toLocaleString()}</td>
+      <td class="num">${(c.output_tokens ?? "—").toLocaleString()}</td>
+      <td class="num">${c.latency_ms != null ? c.latency_ms.toLocaleString() + " ms" : "—"}</td>
+      <td class="num">${fmtCost(c.cost_usd)}</td>
+      <td>${c.error ? '<span class="err-text">⚠</span>' : ""}</td>
+    </tr>
+    <tr class="trace-detail hidden" id="traceDetail${i}"><td colspan="8">
+      ${c.error ? `<div class="k">Error</div><pre>${escapeHtml(c.error)}</pre>` : ""}
+      <div class="k">Prompt</div><pre>${escapeHtml(c.prompt || "")}</pre>
+      <div class="k">Response</div><pre>${escapeHtml(c.response || "(none)")}</pre>
+    </td></tr>`;
+  }).join("");
+}
+
+function toggleTrace(i) {
+  document.getElementById("traceDetail" + i).classList.toggle("hidden");
 }
 
 // init

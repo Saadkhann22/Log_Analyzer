@@ -3,4 +3,7 @@ __pycache__/
 *.pyc
 venv/
 .venv/
-checkpoints.db
+checkpoints.db*
+llm_calls.jsonl
+eval/eval_trace.jsonl
+eval/results.csv

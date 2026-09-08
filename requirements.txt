@@ -6,3 +6,5 @@ PyJWT
 google-genai
 langgraph
 langgraph-checkpoint-sqlite
+langfuse
+mcp
